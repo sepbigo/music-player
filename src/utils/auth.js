@@ -3,11 +3,7 @@ import { api } from './api.js'
 export async function login(username, password) {
   try {
     const result = await api.login(username, password)
-    if (result.token) {
-      localStorage.setItem('authToken', result.token)
-      return true
-    }
-    return false
+    return result.success
   } catch (error) {
     console.error('Login failed:', error)
     return false
