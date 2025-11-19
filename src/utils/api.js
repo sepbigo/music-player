@@ -25,7 +25,8 @@ export const api = {
         if (response.status === 401) {
           localStorage.removeItem('authToken')
         }
-        throw new Error(`API error: ${response.status}`)
+        const errorText = await response.text()
+        throw new Error(`API error: ${response.status} - ${errorText}`)
       }
       return await response.json()
     } catch (error) {
@@ -43,14 +44,19 @@ export const api = {
     
     if (result.token) {
       localStorage.setItem('authToken', result.token)
-      return { success: true, username: result.username }
+      return true
     } else {
-      return { success: false, error: result.error }
+      return false
     }
   },
 
   async checkAuth() {
-    return this.request('/api/check-auth')
+    try {
+      const result = await this.request('/api/check-auth')
+      return result.authenticated
+    } catch (error) {
+      return false
+    }
   },
 
   // 歌曲相关
