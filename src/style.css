@@ -28,6 +28,7 @@ button {
   border-radius: 4px;
   padding: 8px 16px;
   transition: all 0.3s ease;
+  font-family: inherit;
 }
 
 button:hover {
@@ -40,7 +41,22 @@ input, textarea {
   border: 1px solid #ccc;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.9);
+  font-family: inherit;
+  font-size: 14px;
 }
+
+/* 图标字体类 */
+.icon-music::before { content: "🎵"; }
+.icon-play::before { content: "▶"; }
+.icon-pause::before { content: "⏸"; }
+.icon-prev::before { content: "⏮"; }
+.icon-next::before { content: "⏭"; }
+.icon-volume::before { content: "🔊"; }
+.icon-search::before { content: "🔍"; }
+.icon-clear::before { content: "✕"; }
+.icon-close::before { content: "×"; }
+.icon-delete::before { content: "🗑"; }
+.icon-playing::before { content: "🎶"; }
 
 /* 滚动条样式 */
 ::-webkit-scrollbar {
