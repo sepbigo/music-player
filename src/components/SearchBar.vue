@@ -62,6 +62,7 @@ export default {
 
 .search-bar:focus-within {
   background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.3);
 }
 
 .search-icon {
@@ -91,6 +92,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 14px;
 }
 
 .clear-btn:hover {
@@ -101,7 +103,7 @@ export default {
 @media (max-width: 768px) {
   .search-bar {
     max-width: 100%;
-    margin-bottom: 10px;
+    margin-bottom: 0;
   }
 }
 </style>
