@@ -138,4 +138,13 @@ export default {
     gap: 10px;
   }
 }
+import { onMounted } from 'vue'
+import { usePlayerStore } from '../stores/player'
+
+// 在 setup 函数中添加
+const playerStore = usePlayerStore()
+
+onMounted(() => {
+  playerStore.loadSongs()
+})
 </style>
