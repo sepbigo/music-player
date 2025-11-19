@@ -1,4 +1,5 @@
-const API_BASE_URL = 'https://your-worker.your-account.workers.dev'
+// 替换为你的 Worker URL
+const API_BASE_URL = 'https://music-player-api.sep-613.workers.dev'
 
 export const api = {
   async request(endpoint, options = {}) {
@@ -20,6 +21,10 @@ export const api = {
     try {
       const response = await fetch(url, config)
       if (!response.ok) {
+        // 如果是认证错误，清除本地 token
+        if (response.status === 401) {
+          localStorage.removeItem('authToken')
+        }
         throw new Error(`API error: ${response.status}`)
       }
       return await response.json()
@@ -31,10 +36,17 @@ export const api = {
 
   // 认证相关
   async login(username, password) {
-    return this.request('/api/login', {
+    const result = await this.request('/api/login', {
       method: 'POST',
       body: JSON.stringify({ username, password })
     })
+    
+    if (result.token) {
+      localStorage.setItem('authToken', result.token)
+      return { success: true, username: result.username }
+    } else {
+      return { success: false, error: result.error }
+    }
   },
 
   async checkAuth() {
