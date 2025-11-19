@@ -2,8 +2,7 @@ import { api } from './api.js'
 
 export async function login(username, password) {
   try {
-    const result = await api.login(username, password)
-    return result.success
+    return await api.login(username, password)
   } catch (error) {
     console.error('Login failed:', error)
     return false
@@ -15,13 +14,7 @@ export function logout() {
 }
 
 export async function checkAuth() {
-  try {
-    const result = await api.checkAuth()
-    return result.authenticated
-  } catch (error) {
-    console.error('Auth check failed:', error)
-    return false
-  }
+  return await api.checkAuth()
 }
 
 export function getAuthToken() {
