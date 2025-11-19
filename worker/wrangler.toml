@@ -1,0 +1,17 @@
+name = "music-player-api"
+compatibility_date = "2023-10-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "music-player-db"
+database_id = "5b6e81fe-a59e-44ab-adfb-faf6664f1122"  # 替换为实际的数据库ID
+
+[[r2_buckets]]
+binding = "SONGS_BUCKET"
+bucket_name = "music-player-songs"
+preview_bucket_name = "music-player-songs"
+
+[vars]
+ADMIN_USERNAME = "sep"
+ADMIN_PASSWORD_HASH = "b9922536c6c1966d7781473844d965df7afc91b032d36a6fd1b075a97a991e36d8b1346814bd5056b258086384d3769ad22bc41d4dc7fd5570d89e65daf613e6"  # 使用 bcrypt 哈希
+JWT_SECRET = "mamimamimamihong"
