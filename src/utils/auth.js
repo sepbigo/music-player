@@ -1,21 +1,33 @@
-// 简单的认证工具
-// 在实际应用中，您应该使用更安全的认证方式
+import { api } from './api.js'
 
-const ADMIN_USERNAME = 'sep'
-const ADMIN_PASSWORD = 'Dfr520821@' // 在实际应用中请使用强密码
-
-export function login(username, password) {
-  if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-    localStorage.setItem('isAdmin', 'true')
-    return true
+export async function login(username, password) {
+  try {
+    const result = await api.login(username, password)
+    if (result.token) {
+      localStorage.setItem('authToken', result.token)
+      return true
+    }
+    return false
+  } catch (error) {
+    console.error('Login failed:', error)
+    return false
   }
-  return false
 }
 
 export function logout() {
-  localStorage.removeItem('isAdmin')
+  localStorage.removeItem('authToken')
 }
 
-export function checkAuth() {
-  return localStorage.getItem('isAdmin') === 'true'
+export async function checkAuth() {
+  try {
+    const result = await api.checkAuth()
+    return result.authenticated
+  } catch (error) {
+    console.error('Auth check failed:', error)
+    return false
+  }
+}
+
+export function getAuthToken() {
+  return localStorage.getItem('authToken')
 }
