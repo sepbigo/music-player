@@ -17,6 +17,7 @@
               id="username" 
               v-model="username" 
               required
+              autocomplete="username"
             >
           </div>
           
@@ -27,10 +28,13 @@
               id="password" 
               v-model="password" 
               required
+              autocomplete="current-password"
             >
           </div>
           
-          <button type="submit" class="login-btn">登录</button>
+          <button type="submit" class="login-btn" :disabled="isLoading">
+            {{ isLoading ? '登录中...' : '登录' }}
+          </button>
         </form>
         
         <div class="error-message" v-if="error">
@@ -52,13 +56,29 @@ export default {
     const username = ref('')
     const password = ref('')
     const error = ref('')
+    const isLoading = ref(false)
     
-    const handleLogin = () => {
-      const success = login(username.value, password.value)
-      if (success) {
-        emit('login', true)
-      } else {
-        error.value = '用户名或密码错误'
+    const handleLogin = async () => {
+      if (!username.value || !password.value) {
+        error.value = '请输入用户名和密码'
+        return
+      }
+      
+      isLoading.value = true
+      error.value = ''
+      
+      try {
+        const success = await login(username.value, password.value)
+        if (success) {
+          emit('login', true)
+        } else {
+          error.value = '用户名或密码错误'
+        }
+      } catch (err) {
+        error.value = '登录失败，请检查网络连接'
+        console.error('Login error:', err)
+      } finally {
+        isLoading.value = false
       }
     }
     
@@ -66,6 +86,7 @@ export default {
       username,
       password,
       error,
+      isLoading,
       handleLogin
     }
   }
@@ -113,6 +134,7 @@ export default {
   color: rgba(255, 255, 255, 0.7);
   padding: 5px;
   border-radius: 4px;
+  font-size: 18px;
 }
 
 .close-btn:hover {
@@ -141,6 +163,7 @@ export default {
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.1);
   color: white;
+  transition: border-color 0.3s;
 }
 
 .form-group input:focus {
@@ -155,10 +178,16 @@ export default {
   padding: 12px;
   font-size: 16px;
   margin-top: 10px;
+  transition: background 0.3s;
 }
 
-.login-btn:hover {
+.login-btn:hover:not(:disabled) {
   background: #2980b9;
+}
+
+.login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .error-message {
