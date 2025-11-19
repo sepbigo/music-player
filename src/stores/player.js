@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { api } from '../utils/api.js'
 
 export const usePlayerStore = defineStore('player', () => {
@@ -28,27 +28,33 @@ export const usePlayerStore = defineStore('player', () => {
   async function loadSongs() {
     isLoading.value = true
     try {
-      songs.value = await api.getSongs()
+      const songsData = await api.getSongs()
+      songs.value = songsData
     } catch (error) {
       console.error('Failed to load songs:', error)
+      songs.value = []
       // 设置一些默认歌曲作为后备
-      songs.value = [
-        {
-          id: 1,
-          title: '示例歌曲',
-          artist: '示例艺术家',
-          duration: '3:45',
-          url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
-        }
-      ]
+      if (songs.value.length === 0) {
+        songs.value = [
+          {
+            id: 1,
+            title: '示例歌曲',
+            artist: '示例艺术家',
+            duration: '3:45',
+            url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
+          }
+        ]
+      }
     } finally {
       isLoading.value = false
     }
   }
   
   function playSong(index) {
-    currentSongIndex.value = index
-    isPlaying.value = true
+    if (index >= 0 && index < songs.value.length) {
+      currentSongIndex.value = index
+      isPlaying.value = true
+    }
   }
   
   function pauseSong() {
@@ -56,18 +62,22 @@ export const usePlayerStore = defineStore('player', () => {
   }
   
   function resumeSong() {
-    isPlaying.value = true
+    if (songs.value.length > 0) {
+      isPlaying.value = true
+    }
   }
   
   function nextSong() {
     if (songs.value.length > 0) {
       currentSongIndex.value = (currentSongIndex.value + 1) % songs.value.length
+      isPlaying.value = true
     }
   }
   
   function prevSong() {
     if (songs.value.length > 0) {
       currentSongIndex.value = (currentSongIndex.value - 1 + songs.value.length) % songs.value.length
+      isPlaying.value = true
     }
   }
   
@@ -95,6 +105,8 @@ export const usePlayerStore = defineStore('player', () => {
   }
   
   async function removeSong(index) {
+    if (index < 0 || index >= songs.value.length) return false
+    
     const songId = songs.value[index].id
     try {
       await api.deleteSong(songId)
@@ -103,7 +115,7 @@ export const usePlayerStore = defineStore('player', () => {
       // 如果删除的是当前播放的歌曲
       if (currentSongIndex.value === index) {
         if (songs.value.length > 0) {
-          currentSongIndex.value = 0
+          currentSongIndex.value = Math.min(index, songs.value.length - 1)
           isPlaying.value = true
         } else {
           currentSongIndex.value = -1
@@ -118,11 +130,6 @@ export const usePlayerStore = defineStore('player', () => {
       return false
     }
   }
-  
-  // 在 store 创建时加载歌曲
-  onMounted(() => {
-    loadSongs()
-  })
   
   return {
     songs,
