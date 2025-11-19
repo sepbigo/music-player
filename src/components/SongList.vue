@@ -12,11 +12,11 @@
       <div 
         v-for="(song, index) in filteredSongs" 
         :key="song.id"
-        :class="['song-item', { active: currentSongIndex === index }]"
+        :class="['song-item', { active: currentSongIndex === getOriginalIndex(index) }]"
         @click="playSong(index)"
       >
         <div class="item-index">
-          <span v-if="currentSongIndex !== index">{{ index + 1 }}</span>
+          <span v-if="currentSongIndex !== getOriginalIndex(index)">{{ index + 1 }}</span>
           <i v-else class="icon-playing"></i>
         </div>
         <div class="item-title">{{ song.title }}</div>
@@ -29,15 +29,19 @@
         </div>
       </div>
       
-      <div class="empty-state" v-if="filteredSongs.length === 0">
+      <div class="empty-state" v-if="filteredSongs.length === 0 && !isLoading">
         <p>没有找到匹配的歌曲</p>
+      </div>
+      
+      <div class="loading-state" v-if="isLoading">
+        <p>加载中...</p>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { usePlayerStore } from '../stores/player'
 import { checkAuth } from '../utils/auth'
 
@@ -45,31 +49,41 @@ export default {
   name: 'SongList',
   setup() {
     const playerStore = usePlayerStore()
-    const isAdmin = checkAuth()
+    const isAdmin = ref(false)
     
     const filteredSongs = computed(() => playerStore.filteredSongs)
     const currentSongIndex = computed(() => playerStore.currentSongIndex)
+    const isLoading = computed(() => playerStore.isLoading)
+    
+    // 检查管理员状态
+    checkAuth().then(result => {
+      isAdmin.value = result
+    })
+    
+    const getOriginalIndex = (filteredIndex) => {
+      const filteredSong = filteredSongs.value[filteredIndex]
+      return playerStore.songs.findIndex(song => song.id === filteredSong.id)
+    }
     
     const playSong = (index) => {
-      // 找到在原始歌曲列表中的索引
-      const originalIndex = playerStore.songs.findIndex(
-        song => song.id === filteredSongs.value[index].id
-      )
+      const originalIndex = getOriginalIndex(index)
       playerStore.playSong(originalIndex)
     }
     
-    const removeSong = (index) => {
-      // 找到在原始歌曲列表中的索引
-      const originalIndex = playerStore.songs.findIndex(
-        song => song.id === filteredSongs.value[index].id
-      )
-      playerStore.removeSong(originalIndex)
+    const removeSong = async (index) => {
+      const originalIndex = getOriginalIndex(index)
+      const success = await playerStore.removeSong(originalIndex)
+      if (!success) {
+        alert('删除歌曲失败，请检查网络连接或管理员权限')
+      }
     }
     
     return {
       filteredSongs,
       currentSongIndex,
+      isLoading,
       isAdmin,
+      getOriginalIndex,
       playSong,
       removeSong
     }
@@ -181,6 +195,7 @@ export default {
   color: rgba(255, 255, 255, 0.5);
   padding: 5px;
   border-radius: 4px;
+  font-size: 14px;
 }
 
 .delete-btn:hover {
@@ -188,7 +203,7 @@ export default {
   color: var(--danger-color);
 }
 
-.empty-state {
+.empty-state, .loading-state {
   display: flex;
   justify-content: center;
   align-items: center;
