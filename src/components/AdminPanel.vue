@@ -14,22 +14,24 @@
           <form @submit.prevent="addSong">
             <div class="form-row">
               <div class="form-group">
-                <label for="title">歌曲标题</label>
+                <label for="title">歌曲标题 *</label>
                 <input 
                   type="text" 
                   id="title" 
                   v-model="newSong.title" 
                   required
+                  placeholder="歌曲名称"
                 >
               </div>
               
               <div class="form-group">
-                <label for="artist">艺术家</label>
+                <label for="artist">艺术家 *</label>
                 <input 
                   type="text" 
                   id="artist" 
                   v-model="newSong.artist" 
                   required
+                  placeholder="艺术家名称"
                 >
               </div>
             </div>
@@ -42,24 +44,29 @@
                   id="duration" 
                   v-model="newSong.duration" 
                   placeholder="例如: 3:45"
-                  required
                 >
               </div>
               
               <div class="form-group full-width">
-                <label for="url">歌曲URL</label>
+                <label for="url">歌曲URL *</label>
                 <input 
                   type="url" 
                   id="url" 
                   v-model="newSong.url" 
-                  placeholder="https://example.com/song.mp3"
                   required
+                  placeholder="https://example.com/song.mp3"
                 >
               </div>
             </div>
             
-            <button type="submit" class="add-btn">添加歌曲</button>
+            <button type="submit" class="add-btn" :disabled="isAdding">
+              {{ isAdding ? '添加中...' : '添加歌曲' }}
+            </button>
           </form>
+          
+          <div class="form-message" v-if="formMessage">
+            {{ formMessage }}
+          </div>
         </div>
         
         <div class="song-count">
@@ -71,7 +78,7 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { usePlayerStore } from '../stores/player'
 
 export default {
@@ -79,6 +86,8 @@ export default {
   emits: ['close'],
   setup(props, { emit }) {
     const playerStore = usePlayerStore()
+    const isAdding = ref(false)
+    const formMessage = ref('')
     
     const newSong = ref({
       title: '',
@@ -87,21 +96,42 @@ export default {
       url: ''
     })
     
-    const songs = ref(playerStore.songs)
+    const songs = computed(() => playerStore.songs)
     
-    const addSong = () => {
-      playerStore.addSong(newSong.value)
-      newSong.value = {
-        title: '',
-        artist: '',
-        duration: '',
-        url: ''
+    const addSong = async () => {
+      if (!newSong.value.title || !newSong.value.artist || !newSong.value.url) {
+        formMessage.value = '请填写所有必填字段（带*号）'
+        return
+      }
+      
+      isAdding.value = true
+      formMessage.value = ''
+      
+      try {
+        const success = await playerStore.addSong(newSong.value)
+        if (success) {
+          formMessage.value = '歌曲添加成功！'
+          newSong.value = {
+            title: '',
+            artist: '',
+            duration: '',
+            url: ''
+          }
+        } else {
+          formMessage.value = '添加歌曲失败，请检查网络连接'
+        }
+      } catch (error) {
+        formMessage.value = '添加歌曲失败: ' + error.message
+      } finally {
+        isAdding.value = false
       }
     }
     
     return {
       newSong,
       songs,
+      isAdding,
+      formMessage,
       addSong
     }
   }
@@ -127,16 +157,57 @@ export default {
   flex: 2;
 }
 
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 14px;
+}
+
+.form-group input:focus {
+  border-color: var(--primary-color);
+  outline: none;
+}
+
 .add-btn {
   background: var(--success-color);
   color: white;
   padding: 12px 20px;
   width: 100%;
   margin-top: 10px;
+  transition: background 0.3s;
 }
 
-.add-btn:hover {
+.add-btn:hover:not(:disabled) {
   background: #27ae60;
+}
+
+.add-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.form-message {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.form-message:not(:empty) {
+  background: rgba(46, 204, 113, 0.2);
+  color: var(--success-color);
 }
 
 .song-count {
