@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { api } from '../utils/api.js'
 
 export const usePlayerStore = defineStore('player', () => {
@@ -31,7 +31,16 @@ export const usePlayerStore = defineStore('player', () => {
       songs.value = await api.getSongs()
     } catch (error) {
       console.error('Failed to load songs:', error)
-      songs.value = []
+      // 设置一些默认歌曲作为后备
+      songs.value = [
+        {
+          id: 1,
+          title: '示例歌曲',
+          artist: '示例艺术家',
+          duration: '3:45',
+          url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
+        }
+      ]
     } finally {
       isLoading.value = false
     }
@@ -51,11 +60,15 @@ export const usePlayerStore = defineStore('player', () => {
   }
   
   function nextSong() {
-    currentSongIndex.value = (currentSongIndex.value + 1) % songs.value.length
+    if (songs.value.length > 0) {
+      currentSongIndex.value = (currentSongIndex.value + 1) % songs.value.length
+    }
   }
   
   function prevSong() {
-    currentSongIndex.value = (currentSongIndex.value - 1 + songs.value.length) % songs.value.length
+    if (songs.value.length > 0) {
+      currentSongIndex.value = (currentSongIndex.value - 1 + songs.value.length) % songs.value.length
+    }
   }
   
   function setProgress(value) {
@@ -105,6 +118,11 @@ export const usePlayerStore = defineStore('player', () => {
       return false
     }
   }
+  
+  // 在 store 创建时加载歌曲
+  onMounted(() => {
+    loadSongs()
+  })
   
   return {
     songs,
