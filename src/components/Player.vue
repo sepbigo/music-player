@@ -9,25 +9,28 @@
       <div class="song-info">
         <h2 class="song-title">{{ currentSong ? currentSong.title : '无歌曲' }}</h2>
         <p class="song-artist">{{ currentSong ? currentSong.artist : '选择歌曲开始播放' }}</p>
+        <div class="song-progress" v-if="currentSong">
+          {{ formatTime(currentTime) }} / {{ currentSong.duration }}
+        </div>
       </div>
     </div>
     
     <div class="player-controls">
       <div class="control-buttons">
-        <button class="control-btn" @click="prevSong">
+        <button class="control-btn" @click="prevSong" :disabled="!currentSong">
           <i class="icon-prev"></i>
         </button>
-        <button class="play-btn" @click="togglePlay">
+        <button class="play-btn" @click="togglePlay" :disabled="!currentSong">
           <i :class="isPlaying ? 'icon-pause' : 'icon-play'"></i>
         </button>
-        <button class="control-btn" @click="nextSong">
+        <button class="control-btn" @click="nextSong" :disabled="!currentSong">
           <i class="icon-next"></i>
         </button>
       </div>
       
       <div class="progress-container">
         <span class="time-current">{{ formatTime(currentTime) }}</span>
-        <div class="progress-bar" @click="seek">
+        <div class="progress-bar" @click="seek" :class="{ disabled: !currentSong }">
           <div class="progress" :style="{ width: progress + '%' }"></div>
         </div>
         <span class="time-total">{{ currentSong ? currentSong.duration : '0:00' }}</span>
@@ -54,12 +57,14 @@
       :src="currentSong ? currentSong.url : ''" 
       @timeupdate="updateProgress"
       @ended="nextSong"
+      @loadedmetadata="onLoadedMetadata"
+      @error="onAudioError"
     ></audio>
   </div>
 </template>
 
 <script>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { usePlayerStore } from '../stores/player'
 
 export default {
@@ -68,6 +73,7 @@ export default {
     const playerStore = usePlayerStore()
     const audioElement = ref(null)
     const currentTime = ref(0)
+    const duration = ref(0)
     
     const currentSong = computed(() => playerStore.currentSong)
     const isPlaying = computed(() => playerStore.isPlaying)
@@ -77,7 +83,10 @@ export default {
     watch(isPlaying, (newVal) => {
       if (audioElement.value) {
         if (newVal) {
-          audioElement.value.play()
+          audioElement.value.play().catch(e => {
+            console.error('播放失败:', e)
+            playerStore.pauseSong()
+          })
         } else {
           audioElement.value.pause()
         }
@@ -86,9 +95,13 @@ export default {
     
     watch(currentSong, () => {
       if (audioElement.value && playerStore.isPlaying) {
-        audioElement.value.play()
+        audioElement.value.play().catch(e => {
+          console.error('播放失败:', e)
+          playerStore.pauseSong()
+        })
       }
       currentTime.value = 0
+      duration.value = 0
     })
     
     const togglePlay = () => {
@@ -102,24 +115,36 @@ export default {
     const updateProgress = () => {
       if (audioElement.value) {
         const current = audioElement.value.currentTime
-        const duration = audioElement.value.duration || 1
+        const totalDuration = audioElement.value.duration || 1
         currentTime.value = current
-        playerStore.setProgress((current / duration) * 100)
+        duration.value = totalDuration
+        playerStore.setProgress((current / totalDuration) * 100)
       }
     }
     
+    const onLoadedMetadata = () => {
+      if (audioElement.value) {
+        duration.value = audioElement.value.duration
+      }
+    }
+    
+    const onAudioError = (error) => {
+      console.error('音频加载错误:', error)
+      // 可以在这里添加错误处理，比如跳过无法播放的歌曲
+    }
+    
     const seek = (e) => {
-      if (!audioElement.value) return
+      if (!audioElement.value || !currentSong.value) return
       
       const progressBar = e.currentTarget
       const clickPosition = e.offsetX
       const width = progressBar.clientWidth
-      const duration = audioElement.value.duration
+      const totalDuration = audioElement.value.duration
       
-      if (duration) {
-        const seekTime = (clickPosition / width) * duration
+      if (totalDuration) {
+        const seekTime = (clickPosition / width) * totalDuration
         audioElement.value.currentTime = seekTime
-        playerStore.setProgress((seekTime / duration) * 100)
+        playerStore.setProgress((seekTime / totalDuration) * 100)
       }
     }
     
@@ -131,6 +156,7 @@ export default {
     }
     
     const formatTime = (seconds) => {
+      if (isNaN(seconds)) return '0:00'
       const mins = Math.floor(seconds / 60)
       const secs = Math.floor(seconds % 60)
       return `${mins}:${secs < 10 ? '0' : ''}${secs}`
@@ -144,6 +170,18 @@ export default {
       playerStore.nextSong()
     }
     
+    onMounted(() => {
+      if (audioElement.value) {
+        audioElement.value.volume = volume.value / 100
+      }
+    })
+    
+    onUnmounted(() => {
+      if (audioElement.value) {
+        audioElement.value.pause()
+      }
+    })
+    
     return {
       audioElement,
       currentSong,
@@ -151,8 +189,11 @@ export default {
       progress,
       volume,
       currentTime,
+      duration,
       togglePlay,
       updateProgress,
+      onLoadedMetadata,
+      onAudioError,
       seek,
       setVolume,
       formatTime,
@@ -192,6 +233,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .placeholder-art {
@@ -201,17 +243,30 @@ export default {
 
 .song-info {
   flex: 1;
+  min-width: 0;
 }
 
 .song-title {
   font-size: 24px;
   margin-bottom: 8px;
   color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .song-artist {
   font-size: 16px;
   color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.song-progress {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .player-controls {
@@ -242,6 +297,17 @@ export default {
   transition: all 0.3s ease;
 }
 
+.control-btn:disabled, .play-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.control-btn:not(:disabled):hover, .play-btn:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
 .play-btn {
   width: 70px;
   height: 70px;
@@ -249,9 +315,8 @@ export default {
   font-size: 24px;
 }
 
-.control-btn:hover, .play-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: scale(1.05);
+.play-btn:not(:disabled):hover {
+  background: #2980b9;
 }
 
 .progress-container {
@@ -264,6 +329,7 @@ export default {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.7);
   width: 50px;
+  text-align: center;
 }
 
 .progress-bar {
@@ -274,6 +340,11 @@ export default {
   margin: 0 15px;
   cursor: pointer;
   position: relative;
+}
+
+.progress-bar.disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .progress {
