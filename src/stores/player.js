@@ -1,30 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getSongs, saveSongs } from '../utils/storage'
+import { api } from '../utils/api.js'
 
 export const usePlayerStore = defineStore('player', () => {
-  const songs = ref(getSongs() || [
-    {
-      id: 1,
-      title: '示例歌曲1',
-      artist: '示例艺术家',
-      duration: '3:45',
-      url: 'https://example.com/song1.mp3'
-    },
-    {
-      id: 2,
-      title: '示例歌曲2',
-      artist: '示例艺术家',
-      duration: '4:20',
-      url: 'https://example.com/song2.mp3'
-    }
-  ])
-  
+  const songs = ref([])
   const currentSongIndex = ref(0)
   const isPlaying = ref(false)
   const progress = ref(0)
   const volume = ref(80)
   const searchQuery = ref('')
+  const isLoading = ref(false)
   
   const currentSong = computed(() => {
     return songs.value[currentSongIndex.value]
@@ -38,6 +23,19 @@ export const usePlayerStore = defineStore('player', () => {
       song.artist.toLowerCase().includes(query)
     )
   })
+
+  // 加载歌曲
+  async function loadSongs() {
+    isLoading.value = true
+    try {
+      songs.value = await api.getSongs()
+    } catch (error) {
+      console.error('Failed to load songs:', error)
+      songs.value = []
+    } finally {
+      isLoading.value = false
+    }
+  }
   
   function playSong(index) {
     currentSongIndex.value = index
@@ -72,29 +70,39 @@ export const usePlayerStore = defineStore('player', () => {
     searchQuery.value = query
   }
   
-  function addSong(song) {
-    const newSong = {
-      ...song,
-      id: Date.now()
+  async function addSong(song) {
+    try {
+      const newSong = await api.addSong(song)
+      songs.value.push(newSong)
+      return true
+    } catch (error) {
+      console.error('Failed to add song:', error)
+      return false
     }
-    songs.value.push(newSong)
-    saveSongs(songs.value)
   }
   
-  function removeSong(index) {
-    songs.value.splice(index, 1)
-    saveSongs(songs.value)
-    // 如果删除的是当前播放的歌曲
-    if (currentSongIndex.value === index) {
-      if (songs.value.length > 0) {
-        currentSongIndex.value = 0
-        isPlaying.value = true
-      } else {
-        currentSongIndex.value = -1
-        isPlaying.value = false
+  async function removeSong(index) {
+    const songId = songs.value[index].id
+    try {
+      await api.deleteSong(songId)
+      songs.value.splice(index, 1)
+      
+      // 如果删除的是当前播放的歌曲
+      if (currentSongIndex.value === index) {
+        if (songs.value.length > 0) {
+          currentSongIndex.value = 0
+          isPlaying.value = true
+        } else {
+          currentSongIndex.value = -1
+          isPlaying.value = false
+        }
+      } else if (currentSongIndex.value > index) {
+        currentSongIndex.value--
       }
-    } else if (currentSongIndex.value > index) {
-      currentSongIndex.value--
+      return true
+    } catch (error) {
+      console.error('Failed to delete song:', error)
+      return false
     }
   }
   
@@ -105,8 +113,10 @@ export const usePlayerStore = defineStore('player', () => {
     progress,
     volume,
     searchQuery,
+    isLoading,
     currentSong,
     filteredSongs,
+    loadSongs,
     playSong,
     pauseSong,
     resumeSong,
